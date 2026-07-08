@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 CROO Data & Verification Agent
 ================================
@@ -61,7 +61,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langdetect import LangDetectException, detect
 from nltk.sentiment import SentimentIntensityAnalyzer
@@ -1854,6 +1854,14 @@ async def cap_recommendations(limit: int = 3) -> RecommendationResponse:
         limit=effective_limit,
         recommendations=recommendations,
     )
+
+
+# -- Root / Dashboard ----------------------------------------------------------
+
+@app.get("/", tags=["System"], include_in_schema=False)
+async def root():
+    """Serve the interactive dashboard UI at the root URL."""
+    return FileResponse("dashboard.html")
 
 
 # -- Entrypoint -----------------------------------------------------------------
