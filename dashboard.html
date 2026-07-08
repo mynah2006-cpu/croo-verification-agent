@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CROO · Intelligence Verification Dashboard</title>
+  <meta name="description"
+    content="Real-time AI credibility & fact-checking agent powered by the CROO Agent Protocol. Detect misinformation, psychological manipulation, and logical fallacies instantly." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            void: '#07050f',
+            abyss: '#0d0a18',
+            deep: '#120f20',
+            cavern: '#1a1630',
+            chamber: '#231e3d',
+            veil: '#2e2850',
+            plum: '#4a3f7a',
+            violet: '#6d5acd',
+            iris: '#7c6fe0',
+            lilac: '#9d8ff0',
+            lavender: '#c4baf8',
+            mist: '#e8e4ff',
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
+            'spin-slow': 'spin 3s linear infinite',
+            'fade-up': 'fadeUp 0.6s ease both',
+            'fade-in': 'fadeIn 0.4s ease both',
+            'glow-pulse': 'glowPulse 2s ease-in-out infinite',
+            'bar-fill': 'barFill 1.2s cubic-bezier(0.16,1,0.3,1) both',
+            'ring-draw': 'ringDraw 1.5s cubic-bezier(0.16,1,0.3,1) both',
+            'slide-in': 'slideIn 0.5s cubic-bezier(0.16,1,0.3,1) both',
+          },
+          keyframes: {
+            fadeUp: { from: { opacity: '0', transform: 'translateY(24px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+            fadeIn: { from: { opacity: '0' }, to: { opacity: '1' } },
+            glowPulse: { '0%,100%': { boxShadow: '0 0 20px #7c6fe040' }, '50%': { boxShadow: '0 0 50px #7c6fe080, 0 0 90px #7c6fe030' } },
+            barFill: { from: { width: '0%' }, to: { width: 'var(--bar-w)' } },
+            ringDraw: { from: { strokeDashoffset: '339.3' }, to: { strokeDashoffset: 'var(--ring-offset)' } },
+            slideIn: { from: { opacity: '0', transform: 'translateX(-20px)' }, to: { opacity: '1', transform: 'translateX(0)' } },
+          },
+          backdropBlur: { xs: '2px' },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: #07050f;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -10%, #2e1b6040 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 90% 80%, #4a3f7a20 0%, transparent 60%),
+        radial-gradient(ellipse 30% 30% at 10% 70%, #7c3aed10 0%, transparent 60%);
+      min-height: 100vh;
+      font-family: 'Outfit', sans-serif;
+      color: #e8e4ff;
+    }
+
+    /* ── Noise texture overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Glassmorphism card ── */
+    .glass-card {
+      background: linear-gradient(135deg, rgba(35, 30, 61, 0.85) 0%, rgba(26, 22, 48, 0.9) 100%);
+      border: 1px solid rgba(125, 111, 224, 0.18);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+    }
+
+    .glass-card:hover {
+      border-color: rgba(125, 111, 224, 0.38);
+      box-shadow: 0 0 30px rgba(125, 111, 224, 0.12), 0 8px 32px rgba(0, 0, 0, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* ── Score ring ── */
+    .score-ring-track {
+      stroke: rgba(125, 111, 224, 0.15);
+    }
+
+    .score-ring-fill {
+      stroke: url(#ringGradient);
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+      filter: drop-shadow(0 0 8px rgba(125, 111, 224, 0.8));
+    }
+
+    /* ── Progress bar ── */
+    .dim-bar-track {
+      background: rgba(125, 111, 224, 0.12);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .dim-bar-fill {
+      height: 100%;
+      border-radius: 9999px;
+      transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dim-bar-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.25) 50%, transparent 100%);
+      transform: translateX(-100%);
+      animation: shimmer 2s ease infinite 1.2s;
+    }
+
+    @keyframes shimmer {
+      to {
+        transform: translateX(200%);
+      }
+    }
+
+    /* ── Input area ── */
+    .verify-input {
+      background: rgba(26, 22, 48, 0.8);
+      border: 1px solid rgba(125, 111, 224, 0.25);
+      color: #e8e4ff;
+      resize: none;
+      outline: none;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .verify-input:focus {
+      border-color: rgba(125, 111, 224, 0.6);
+      box-shadow: 0 0 0 3px rgba(125, 111, 224, 0.12), 0 0 20px rgba(125, 111, 224, 0.1);
+    }
+
+    .verify-input::placeholder {
+      color: rgba(196, 186, 248, 0.3);
+    }
+
+    /* ── Verify button ── */
+    .verify-btn {
+      background: linear-gradient(135deg, #6d5acd 0%, #7c6fe0 50%, #9d8ff0 100%);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.3s ease, filter 0.3s ease;
+      border: 1px solid rgba(157, 143, 240, 0.4);
+    }
+
+    .verify-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+    }
+
+    .verify-btn:hover:not(:disabled) {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 0 40px rgba(125, 111, 224, 0.5), 0 8px 24px rgba(0, 0, 0, 0.4);
+      filter: brightness(1.1);
+    }
+
+    .verify-btn:active:not(:disabled) {
+      transform: translateY(0) scale(0.98);
+    }
+
+    .verify-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* ── Loading pipeline steps ── */
+    .pipeline-step {
+      transition: all 0.4s ease;
+    }
+
+    .pipeline-step.active {
+      color: #9d8ff0;
+    }
+
+    .pipeline-step.done {
+      color: #6ee7b7;
+    }
+
+    .pipeline-step.pending {
+      color: rgba(196, 186, 248, 0.3);
+    }
+
+    /* ── Label badge ── */
+    .label-badge {
+      font-weight: 700;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      padding: 0.3rem 0.8rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── Stagger animation delays ── */
+    .stagger-1 {
+      animation-delay: 0.05s;
+    }
+
+    .stagger-2 {
+      animation-delay: 0.10s;
+    }
+
+    .stagger-3 {
+      animation-delay: 0.15s;
+    }
+
+    .stagger-4 {
+      animation-delay: 0.20s;
+    }
+
+    .stagger-5 {
+      animation-delay: 0.25s;
+    }
+
+    .stagger-6 {
+      animation-delay: 0.30s;
+    }
+
+    .stagger-7 {
+      animation-delay: 0.35s;
+    }
+
+    .stagger-8 {
+      animation-delay: 0.40s;
+    }
+
+    /* ── Tab toggle ── */
+    .tab-btn {
+      transition: all 0.2s ease;
+      border-radius: 8px;
+      padding: 0.4rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .tab-btn.active {
+      background: rgba(125, 111, 224, 0.25);
+      color: #c4baf8;
+      border: 1px solid rgba(125, 111, 224, 0.4);
+    }
+
+    .tab-btn.inactive {
+      color: rgba(196, 186, 248, 0.4);
+      border: 1px solid transparent;
+    }
+
+    .tab-btn.inactive:hover {
+      color: rgba(196, 186, 248, 0.7);
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(26, 22, 48, 0.5);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(125, 111, 224, 0.4);
+      border-radius: 3px;
+    }
+
+    /* ── Pulse dot ── */
+    .pulse-dot {
+      animation: pulseDot 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(0.8);
+      }
+    }
+
+    .pulse-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .pulse-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    /* ── Flag item ── */
+    .flag-item {
+      animation: fadeUp 0.4s ease both;
+    }
+
+    /* ── Glow border animation on results reveal ── */
+    @keyframes borderGlow {
+      from {
+        border-color: rgba(125, 111, 224, 0.5);
+        box-shadow: 0 0 40px rgba(125, 111, 224, 0.3);
+      }
+
+      to {
+        border-color: rgba(125, 111, 224, 0.18);
+        box-shadow: none;
+      }
+    }
+
+    .result-reveal {
+      animation: borderGlow 2s ease forwards;
+    }
+
+    /* ── Particle stars background ── */
+    .star {
+      position: fixed;
+      border-radius: 50%;
+      background: rgba(196, 186, 248, 0.6);
+      animation: twinkle var(--dur) ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes twinkle {
+
+      0%,
+      100% {
+        opacity: 0.1;
+      }
+
+      50% {
+        opacity: var(--peak);
+      }
+    }
+  </style>
+</head>
+
+<body class="relative z-10">
+
+  <!-- ── Particle field ─────────────────────────────────────────────── -->
+  <div id="starfield" aria-hidden="true"></div>
+
+  <!-- ── Top navigation ─────────────────────────────────────────────── -->
+  <nav class="relative z-20 border-b border-violet/10 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet to-iris flex items-center justify-center shadow-lg"
+          style="box-shadow:0 0 16px rgba(125,111,224,0.5)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="white" stroke-width="1.5" fill="none" />
+            <circle cx="8" cy="8" r="2" fill="white" />
+          </svg>
+        </div>
+        <div>
+          <span class="font-bold text-mist tracking-tight">CROO</span>
+          <span class="text-lavender/50 font-light ml-1 text-sm">Intelligence Agent</span>
+        </div>
+      </div>
+      <!-- Status pills -->
+      <div class="hidden sm:flex items-center gap-3">
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-full glass-card text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-slow"></span>
+          <span class="text-lavender/70">API Online</span>
+        </div>
+        <div class="px-3 py-1.5 rounded-full glass-card text-xs text-lavender/50 font-mono">
+          CAP/1.0
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main content ────────────────────────────────────────────────── -->
+  <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-10">
+
+    <!-- ── Hero header ── -->
+    <div class="text-center mb-12 animate-fade-up">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card text-xs text-iris font-mono mb-6">
+        <span class="w-1.5 h-1.5 rounded-full bg-iris animate-pulse"></span>
+        Multi-Dimensional NLP · 7 Credibility Dimensions · LLM-Powered Analysis
+      </div>
+      <h1 class="text-4xl sm:text-6xl font-black tracking-tight leading-none mb-4">
+        <span class="text-mist">Verification</span>
+        <br />
+        <span class="bg-gradient-to-r from-iris via-lilac to-lavender bg-clip-text text-transparent">Intelligence
+          Engine</span>
+      </h1>
+      <p class="text-lavender/50 text-lg max-w-xl mx-auto font-light">
+        Detect misinformation, psychological manipulation, and logical fallacies with military-grade NLP precision.
+      </p>
+    </div>
+
+    <!-- ── Input panel ── -->
+    <div class="glass-card rounded-2xl p-6 mb-8 animate-fade-up stagger-2 result-reveal"
+      style="animation: fadeUp 0.6s 0.1s ease both, borderGlow 3s 0.6s ease forwards;">
+      <!-- Tab switcher -->
+      <div class="flex items-center gap-2 mb-4">
+        <button id="tabText" class="tab-btn active" onclick="setTab('text')">✦ Text Claim</button>
+        <button id="tabUrl" class="tab-btn inactive" onclick="setTab('url')">⬡ URL</button>
+      </div>
+
+      <!-- Text input -->
+      <div id="textPanel">
+        <textarea id="textInput"
+          class="verify-input w-full rounded-xl px-4 py-3 text-sm leading-relaxed min-h-[110px] max-h-64"
+          placeholder="Paste a claim, article excerpt, or any piece of information to verify…&#10;&#10;e.g. Scientists at MIT have discovered that drinking coffee completely reverses aging."
+          maxlength="50000"></textarea>
+        <div class="flex justify-end mt-1">
+          <span id="charCount" class="text-lavender/25 text-xs font-mono">0 / 50,000</span>
+        </div>
+      </div>
+
+      <!-- URL input -->
+      <div id="urlPanel" class="hidden">
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lavender/30">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M6.5 9.5L9.5 6.5M7 11.5L5.5 13C4.5 14 3 14 2 13C1 12 1 10.5 2 9.5L3.5 8M8.5 4.5L10 3C11 2 12.5 2 13.5 3C14.5 4 14.5 5.5 13.5 6.5L12 8"
+                stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+          </span>
+          <input id="urlInput" type="url" class="verify-input w-full rounded-xl pl-10 pr-4 py-3 text-sm"
+            placeholder="https://example.com/article-to-verify" />
+        </div>
+      </div>
+
+      <!-- Action row -->
+      <div class="flex items-center justify-between mt-4 gap-4 flex-wrap">
+        <div class="text-lavender/30 text-xs hidden sm:block">
+          Supports claims up to 10,000 words · Powered by xAI Grok / Skywork LLM
+        </div>
+        <div class="flex items-center gap-3 ml-auto">
+          <button onclick="clearAll()"
+            class="text-lavender/40 text-sm hover:text-lavender/70 transition-colors px-3 py-2 rounded-lg hover:bg-veil/30">
+            Clear
+          </button>
+          <button id="verifyBtn" onclick="runVerification()"
+            class="verify-btn px-8 py-3 rounded-xl text-white font-semibold text-sm shadow-xl">
+            <span id="btnText" class="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M13 5L6 12L3 9" stroke="white" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              Run Verification
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Loading state ── -->
+    <div id="loadingPanel" class="hidden glass-card rounded-2xl p-8 mb-8">
+      <div class="flex flex-col items-center gap-6">
+        <!-- Spinner ring -->
+        <div class="relative w-20 h-20">
+          <svg class="animate-spin-slow w-full h-full" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(125,111,224,0.12)" stroke-width="4" />
+            <circle cx="40" cy="40" r="34" fill="none" stroke="url(#spinGrad)" stroke-width="4" stroke-linecap="round"
+              stroke-dasharray="50 163.4" />
+            <defs>
+              <linearGradient id="spinGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#7c6fe0" stop-opacity="0" />
+                <stop offset="100%" stop-color="#9d8ff0" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="w-3 h-3 rounded-full bg-iris animate-pulse"></div>
+          </div>
+        </div>
+
+        <!-- Pipeline steps -->
+        <div class="space-y-2 text-sm text-center w-full max-w-xs">
+          <div id="step1" class="pipeline-step pending flex items-center justify-center gap-2">
+            <span class="w-4 h-4 rounded-full border border-current flex items-center justify-center text-xs">1</span>
+            NLP Dimension Analysis
+          </div>
+          <div id="step2" class="pipeline-step pending flex items-center justify-center gap-2">
+            <span class="w-4 h-4 rounded-full border border-current flex items-center justify-center text-xs">2</span>
+            RAG Fact-Check Retrieval
+          </div>
+          <div id="step3" class="pipeline-step pending flex items-center justify-center gap-2">
+            <span class="w-4 h-4 rounded-full border border-current flex items-center justify-center text-xs">3</span>
+            LLM Semantic Analysis
+          </div>
+          <div id="step4" class="pipeline-step pending flex items-center justify-center gap-2">
+            <span class="w-4 h-4 rounded-full border border-current flex items-center justify-center text-xs">4</span>
+            Manipulation Detection
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <span class="pulse-dot w-2 h-2 rounded-full bg-iris"></span>
+          <span class="pulse-dot w-2 h-2 rounded-full bg-iris"></span>
+          <span class="pulse-dot w-2 h-2 rounded-full bg-iris"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Error state ── -->
+    <div id="errorPanel" class="hidden glass-card rounded-2xl p-6 mb-8 border-rose-500/30">
+      <div class="flex items-start gap-4">
+        <div class="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 7V11M10 13.5V14M4 16H16L10 4L4 16Z" stroke="#f43f5e" stroke-width="1.5" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div>
+          <div class="text-rose-400 font-semibold mb-1">Verification Failed</div>
+          <div id="errorMsg" class="text-lavender/60 text-sm font-mono leading-relaxed"></div>
+          <div class="mt-3 text-xs text-lavender/30">Ensure the CROO backend is running on <code
+              class="text-iris">http://localhost:8000</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         RESULTS BENTO GRID
+    ═════════════════════════════════════════════════════════════════ -->
+    <div id="resultsGrid" class="hidden">
+
+      <!-- ── Row 1: Score + Label + Meta ── -->
+      <div class="grid grid-cols-12 gap-4 mb-4">
+
+        <!-- Score ring card (spans 5 cols) -->
+        <div id="scoreCard"
+          class="col-span-12 sm:col-span-5 glass-card rounded-2xl p-6 flex flex-col items-center justify-center animate-fade-up stagger-1 min-h-[240px] result-reveal">
+          <div class="text-lavender/40 text-xs uppercase tracking-widest mb-4 font-mono">Overall Credibility</div>
+          <div class="relative">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <defs>
+                <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6d5acd" />
+                  <stop offset="50%" stop-color="#9d8ff0" />
+                  <stop offset="100%" stop-color="#c4baf8" />
+                </linearGradient>
+              </defs>
+              <!-- Track -->
+              <circle cx="90" cy="90" r="74" fill="none" stroke="rgba(125,111,224,0.1)" stroke-width="10" />
+              <!-- Glow track -->
+              <circle cx="90" cy="90" r="74" fill="none" stroke="rgba(125,111,224,0.04)" stroke-width="18" />
+              <!-- Score fill -->
+              <circle id="scoreRing" cx="90" cy="90" r="74" fill="none" stroke="url(#ringGradient)" stroke-width="10"
+                stroke-linecap="round" stroke-dasharray="465" stroke-dashoffset="465" transform="rotate(-90 90 90)"
+                style="transition: stroke-dashoffset 1.6s cubic-bezier(0.16,1,0.3,1); filter: drop-shadow(0 0 12px rgba(125,111,224,0.7))" />
+            </svg>
+            <!-- Center text -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <div id="scoreNum" class="text-5xl font-black text-mist leading-none">—</div>
+              <div class="text-lavender/40 text-xs font-mono mt-1">/ 100</div>
+            </div>
+          </div>
+          <!-- Confidence bar below ring -->
+          <div class="w-full mt-4">
+            <div class="flex justify-between text-xs text-lavender/40 mb-1">
+              <span class="font-mono">Confidence</span>
+              <span id="confVal" class="font-mono">—</span>
+            </div>
+            <div class="dim-bar-track h-1.5">
+              <div id="confBar" class="dim-bar-fill bg-gradient-to-r from-plum to-iris"
+                style="width:0%; transition: width 1.4s 0.3s cubic-bezier(0.16,1,0.3,1)"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Label + verdict card (spans 4 cols) -->
+        <div class="col-span-12 sm:col-span-4 flex flex-col gap-4">
+          <!-- Label -->
+          <div id="labelCard"
+            class="glass-card rounded-2xl p-5 animate-fade-up stagger-2 result-reveal flex-1 flex flex-col justify-between">
+            <div class="text-lavender/40 text-xs uppercase tracking-widest font-mono mb-3">Verdict</div>
+            <div>
+              <div id="labelBadge" class="label-badge inline-flex mb-3 text-white">—</div>
+              <div id="labelDesc" class="text-lavender/60 text-xs leading-relaxed"></div>
+            </div>
+          </div>
+          <!-- Metadata -->
+          <div class="glass-card rounded-2xl p-5 animate-fade-up stagger-3 result-reveal flex-1">
+            <div class="text-lavender/40 text-xs uppercase tracking-widest font-mono mb-3">Analysis Metadata</div>
+            <div class="grid grid-cols-2 gap-y-2 text-xs">
+              <span class="text-lavender/40">Language</span> <span id="metaLang"
+                class="text-lavender font-mono text-right">—</span>
+              <span class="text-lavender/40">Word Count</span> <span id="metaWords"
+                class="text-lavender font-mono text-right">—</span>
+              <span class="text-lavender/40">Reading Ease</span> <span id="metaEase"
+                class="text-lavender font-mono text-right">—</span>
+              <span class="text-lavender/40">Source Type</span> <span id="metaSrc"
+                class="text-lavender font-mono text-right capitalize">—</span>
+              <span class="text-lavender/40">CAP Billed</span> <span id="metaBilled"
+                class="text-lavender font-mono text-right">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Verification ID card (spans 3 cols) -->
+        <div
+          class="col-span-12 sm:col-span-3 glass-card rounded-2xl p-5 animate-fade-up stagger-4 result-reveal flex flex-col justify-between">
+          <div>
+            <div class="text-lavender/40 text-xs uppercase tracking-widest font-mono mb-3">Verification Receipt</div>
+            <div id="vrfyId" class="text-iris text-xs font-mono break-all leading-relaxed">—</div>
+          </div>
+          <div class="mt-4">
+            <div class="text-lavender/40 text-xs font-mono mb-1">Timestamp</div>
+            <div id="vrfyTs" class="text-lavender/60 text-xs font-mono">—</div>
+          </div>
+          <div class="mt-3 pt-3 border-t border-violet/10">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-slow"></span>
+              <span class="text-lavender/40 text-xs">Verified on CROO Protocol</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Row 2: LLM Summary ── -->
+      <div class="mb-4 animate-fade-up stagger-3 result-reveal">
+        <div class="glass-card rounded-2xl p-6" style="border-color: rgba(125,111,224,0.22);">
+          <div class="flex items-center gap-3 mb-4">
+            <div
+              class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet/30 to-iris/20 border border-violet/30 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1L8.8 5.2L13 6L9.5 9.4L10.4 13.6L7 11.5L3.6 13.6L4.5 9.4L1 6L5.2 5.2L7 1Z"
+                  fill="rgba(157,143,240,0.8)" />
+              </svg>
+            </div>
+            <div>
+              <div class="text-mist font-semibold text-sm">Semantic Analysis</div>
+              <div id="llmProvider" class="text-lavender/35 text-xs font-mono">LLM Detective Report</div>
+            </div>
+            <div class="ml-auto">
+              <span class="text-xs font-mono text-iris px-2 py-1 rounded-md"
+                style="background:rgba(125,111,224,0.1); border:1px solid rgba(125,111,224,0.2)">AI-Generated</span>
+            </div>
+          </div>
+          <div id="summaryText" class="text-lavender/75 text-sm leading-7 font-light p-4 rounded-xl"
+            style="background:rgba(13,10,24,0.6); border:1px solid rgba(125,111,224,0.1); min-height: 80px;">
+            The analysis summary will appear here after verification.
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Row 3: 7 NLP Dimension Cards ── -->
+      <div class="mb-4">
+        <div class="text-lavender/30 text-xs uppercase tracking-widest font-mono mb-3 px-1">
+          NLP Credibility Dimensions
+        </div>
+        <div id="dimensionsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+
+      <!-- ── Row 4: Flags ── -->
+      <div id="flagsSection" class="mb-4 animate-fade-up stagger-7 result-reveal hidden">
+        <div class="glass-card rounded-2xl p-5" style="border-color: rgba(251,146,60,0.2);">
+          <div class="flex items-center gap-2 mb-4">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 5V9M8 11.5V12M3 14H13L8 2L3 14Z" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+            <div class="text-orange-400 font-semibold text-sm">Detection Flags</div>
+            <span id="flagCount" class="ml-auto text-orange-400/60 text-xs font-mono px-2 py-0.5 rounded-full"
+              style="background:rgba(251,146,60,0.1)">0 flags</span>
+          </div>
+          <div id="flagsList" class="space-y-2"></div>
+        </div>
+      </div>
+
+    </div>
+    <!-- END results grid -->
+
+    <!-- ── Footer ── -->
+    <footer class="mt-16 pt-8 border-t border-violet/10 text-center text-xs text-lavender/25 pb-8">
+      <div class="flex items-center justify-center gap-4 flex-wrap">
+        <span>CROO Data & Verification Agent · v2.0</span>
+        <span class="text-violet/30">·</span>
+        <span class="font-mono">CAP/1.0 Protocol</span>
+        <span class="text-violet/30">·</span>
+        <span>7-Dimension NLP Pipeline</span>
+        <span class="text-violet/30">·</span>
+        <a href="http://localhost:8000/docs" target="_blank" class="text-iris/50 hover:text-iris transition-colors">API
+          Docs ↗</a>
+      </div>
+    </footer>
+
+  </main>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       JAVASCRIPT
+  ═════════════════════════════════════════════════════════════════ -->
+  <script>
+    // ── Config ─────────────────────────────────────────────────────
+    const API_BASE = 'http://localhost:8000';
+
+    // ── State ──────────────────────────────────────────────────────
+    let activeTab = 'text';
+
+    // ── Starfield ──────────────────────────────────────────────────
+    (function buildStars() {
+      const field = document.getElementById('starfield');
+      const N = 60;
+      for (let i = 0; i < N; i++) {
+        const s = document.createElement('div');
+        const size = Math.random() * 2 + 0.5;
+        const dur = (Math.random() * 6 + 4).toFixed(1);
+        const peak = (Math.random() * 0.5 + 0.1).toFixed(2);
+        s.className = 'star';
+        s.style.cssText = `
+          width:${size}px; height:${size}px;
+          top:${(Math.random() * 100).toFixed(1)}%;
+          left:${(Math.random() * 100).toFixed(1)}%;
+          --dur:${dur}s; --peak:${peak};
+          animation-delay:${(Math.random() * 6).toFixed(1)}s;
+          z-index:0;
+        `;
+        field.appendChild(s);
+      }
+    })();
+
+    // ── Tab switching ──────────────────────────────────────────────
+    function setTab(tab) {
+      activeTab = tab;
+      document.getElementById('tabText').className = 'tab-btn ' + (tab === 'text' ? 'active' : 'inactive');
+      document.getElementById('tabUrl').className = 'tab-btn ' + (tab === 'url' ? 'active' : 'inactive');
+      document.getElementById('textPanel').classList.toggle('hidden', tab !== 'text');
+      document.getElementById('urlPanel').classList.toggle('hidden', tab !== 'url');
+    }
+
+    // ── Char counter ───────────────────────────────────────────────
+    document.getElementById('textInput').addEventListener('input', function () {
+      const l = this.value.length;
+      document.getElementById('charCount').textContent = l.toLocaleString() + ' / 50,000';
+    });
+
+    // ── Clear ──────────────────────────────────────────────────────
+    function clearAll() {
+      document.getElementById('textInput').value = '';
+      document.getElementById('urlInput').value = '';
+      document.getElementById('charCount').textContent = '0 / 50,000';
+      hideResults();
+      hideError();
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────
+    function el(id) { return document.getElementById(id); }
+    function txt(id, v) { const e = el(id); if (e) e.textContent = v; }
+
+    function showLoading() { el('loadingPanel').classList.remove('hidden'); }
+    function hideLoading() { el('loadingPanel').classList.add('hidden'); }
+    function showResults() { el('resultsGrid').classList.remove('hidden'); }
+    function hideResults() { el('resultsGrid').classList.add('hidden'); }
+    function showError(msg) { el('errorPanel').classList.remove('hidden'); el('errorMsg').textContent = msg; }
+    function hideError() { el('errorPanel').classList.add('hidden'); }
+
+    // ── Pipeline step animator ──────────────────────────────────────
+    function animatePipeline() {
+      const steps = ['step1', 'step2', 'step3', 'step4'];
+      const delays = [0, 800, 1800, 2600];
+      steps.forEach((id, i) => {
+        el(id).className = 'pipeline-step pending flex items-center justify-center gap-2';
+        setTimeout(() => {
+          el(id).className = 'pipeline-step active flex items-center justify-center gap-2';
+          // Replace number with pulse indicator
+          el(id).querySelector('span').innerHTML = '●';
+        }, delays[i]);
+      });
+    }
+
+    function finishPipeline() {
+      ['step1', 'step2', 'step3', 'step4'].forEach(id => {
+        const s = el(id);
+        s.className = 'pipeline-step done flex items-center justify-center gap-2';
+        s.querySelector('span').innerHTML = '✓';
+      });
+    }
+
+    // ── Label config ───────────────────────────────────────────────
+    const LABEL_CONFIG = {
+      HIGHLY_CREDIBLE: { bg: 'rgba(16,185,129,0.2)', border: 'rgba(16,185,129,0.5)', text: '#34d399', glow: 'rgba(16,185,129,0.3)', desc: 'This content demonstrates strong credibility signals, authoritative sourcing, and no detectable manipulation or misinformation patterns.' },
+      LIKELY_CREDIBLE: { bg: 'rgba(59,130,246,0.2)', border: 'rgba(59,130,246,0.5)', text: '#93c5fd', glow: 'rgba(59,130,246,0.3)', desc: 'This content is broadly credible with minor uncertainties. Source language and claim density align with reliable reporting standards.' },
+      UNCERTAIN: { bg: 'rgba(245,158,11,0.2)', border: 'rgba(245,158,11,0.5)', text: '#fcd34d', glow: 'rgba(245,158,11,0.3)', desc: 'Verification is inconclusive. Mixed signals across dimensions. Exercise caution and seek additional corroboration.' },
+      LIKELY_MISLEADING: { bg: 'rgba(249,115,22,0.2)', border: 'rgba(249,115,22,0.5)', text: '#fdba74', glow: 'rgba(249,115,22,0.3)', desc: 'Notable credibility risks detected. Sensationalism, emotional manipulation, or unsupported claims are present in the content.' },
+      HIGHLY_MISLEADING: { bg: 'rgba(239,68,68,0.2)', border: 'rgba(239,68,68,0.5)', text: '#fca5a5', glow: 'rgba(239,68,68,0.3)', desc: 'High-confidence misinformation signals. Multiple red flags across NLP dimensions and LLM analysis. Do not propagate without verification.' },
+    };
+
+    // ── Dimension icon map ─────────────────────────────────────────
+    const DIM_ICONS = {
+      'Sensationalism': { icon: '⚡', color: '#f97316' },
+      'Credibility Markers': { icon: '🔬', color: '#22d3ee' },
+      'Sentiment Neutrality': { icon: '⚖️', color: '#a78bfa' },
+      'Readability': { icon: '📖', color: '#34d399' },
+      'Domain Reputation': { icon: '🏛', color: '#60a5fa' },
+      'Claim Density': { icon: '📊', color: '#f59e0b' },
+      'Psychological Manipulation & Fallacies': { icon: '🧠', color: '#f43f5e' },
+    };
+
+    function getBarColor(score) {
+      if (score >= 0.75) return 'linear-gradient(90deg, #065f46, #10b981)';
+      if (score >= 0.55) return 'linear-gradient(90deg, #1e3a5f, #3b82f6)';
+      if (score >= 0.40) return 'linear-gradient(90deg, #78350f, #f59e0b)';
+      if (score >= 0.25) return 'linear-gradient(90deg, #7c2d12, #f97316)';
+      return 'linear-gradient(90deg, #7f1d1d, #ef4444)';
+    }
+
+    function buildDimensionCard(dim, idx) {
+      const pct = Math.round(dim.score * 100);
+      const cfg = DIM_ICONS[dim.name] || { icon: '◈', color: '#9d8ff0' };
+      const barGrad = getBarColor(dim.score);
+
+      return `
+        <div class="glass-card rounded-xl p-4 animate-fade-up" style="animation-delay:${0.05 * (idx + 1)}s">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-base leading-none">${cfg.icon}</span>
+              <span class="text-lavender/70 text-xs font-medium leading-tight">${dim.name}</span>
+            </div>
+            <span class="text-sm font-bold font-mono" style="color:${cfg.color}">${pct}%</span>
+          </div>
+          <!-- Progress bar -->
+          <div class="dim-bar-track h-2 mb-3">
+            <div class="dim-bar-fill" style="width:0%; background:${barGrad}; transition: width 1.2s ${0.1 * idx + 0.3}s cubic-bezier(0.16,1,0.3,1);" data-target="${pct}"></div>
+          </div>
+          <!-- Score tick marks -->
+          <div class="flex justify-between items-center">
+            ${[0, 25, 50, 75, 100].map(t => `<div class="w-px h-1.5 ${pct >= t ? 'opacity-60' : 'opacity-10'}" style="background:${cfg.color}"></div>`).join('')}
+          </div>
+          <!-- Explanation tooltip-style -->
+          <div class="mt-2 text-lavender/30 text-xs leading-relaxed line-clamp-2" title="${dim.explanation}">
+            ${dim.explanation}
+          </div>
+        </div>
+      `;
+    }
+
+    // ── Score ring animation ───────────────────────────────────────
+    function animateScoreRing(score) {
+      const circumference = 465; // 2π × 74
+      const offset = circumference - (score * circumference);
+      const ring = el('scoreRing');
+      ring.style.strokeDashoffset = offset;
+    }
+
+    // ── Main verification ──────────────────────────────────────────
+    async function runVerification() {
+      const btn = el('verifyBtn');
+      hideError();
+      hideResults();
+
+      // Build payload
+      let payload = {};
+      if (activeTab === 'text') {
+        const t = el('textInput').value.trim();
+        if (!t) { showError('Please enter a text claim to verify.'); return; }
+        payload.text = t;
+      } else {
+        const u = el('urlInput').value.trim();
+        if (!u) { showError('Please enter a URL to verify.'); return; }
+        payload.url = u;
+      }
+
+      // UI: loading state
+      btn.disabled = true;
+      el('btnText').innerHTML = `
+        <svg class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" stroke-width="3"/>
+          <path d="M12 2a10 10 0 0 1 10 10" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        Analyzing…
+      `;
+      showLoading();
+      animatePipeline();
+
+      try {
+        const res = await fetch(`${API_BASE}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          const msg = data?.detail ?? `HTTP ${res.status}`;
+          throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+        }
+
+        finishPipeline();
+        await sleep(400);
+        hideLoading();
+        renderResults(data);
+
+      } catch (err) {
+        hideLoading();
+        showError(err.message || 'Unknown error. Is the backend running?');
+      } finally {
+        btn.disabled = false;
+        el('btnText').innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 5L6 12L3 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Run Verification
+        `;
+      }
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // ── Render results ─────────────────────────────────────────────
+    function renderResults(data) {
+      // ── Score ring
+      const scorePct = Math.round(data.overall_credibility_score * 100);
+      txt('scoreNum', scorePct);
+      setTimeout(() => animateScoreRing(data.overall_credibility_score), 100);
+
+      // ── Confidence bar
+      const confPct = Math.round(data.confidence * 100);
+      txt('confVal', confPct + '%');
+      setTimeout(() => { el('confBar').style.width = confPct + '%'; }, 200);
+
+      // ── Label
+      const lCfg = LABEL_CONFIG[data.label] || LABEL_CONFIG.UNCERTAIN;
+      const badge = el('labelBadge');
+      badge.textContent = data.label.replace(/_/g, ' ');
+      badge.style.cssText = `background:${lCfg.bg}; border:1px solid ${lCfg.border}; color:${lCfg.text}; box-shadow: 0 0 20px ${lCfg.glow};`;
+      txt('labelDesc', lCfg.desc);
+
+      // ── Score ring color by verdict
+      el('scoreRing').style.stroke = lCfg.text;
+      el('scoreRing').style.filter = `drop-shadow(0 0 12px ${lCfg.glow})`;
+
+      // ── Score number color
+      el('scoreNum').style.color = lCfg.text;
+
+      // ── Metadata
+      txt('metaLang', data.language?.toUpperCase() || '—');
+      txt('metaWords', data.word_count?.toLocaleString() || '—');
+      txt('metaEase', data.reading_ease?.toFixed(1) || '—');
+      txt('metaSrc', data.source_type || '—');
+      const billedEl = el('metaBilled');
+      billedEl.textContent = data.cap_billed ? 'Yes' : 'No';
+      billedEl.style.color = data.cap_billed ? '#34d399' : 'rgba(196,186,248,0.4)';
+
+      // ── Verification ID & timestamp
+      txt('vrfyId', data.verification_id || '—');
+      const ts = data.timestamp ? new Date(data.timestamp).toLocaleString() : '—';
+      txt('vrfyTs', ts);
+
+      // ── Summary
+      el('summaryText').textContent = data.summary || 'No summary available.';
+
+      // ── LLM provider (extracted from summary prefix if present)
+      const providerMatch = (data.summary || '').match(/\[SemanticAnalysisAgent -- ([^\]]+)\]/);
+      el('llmProvider').textContent = providerMatch
+        ? '⚠ Fallback: ' + providerMatch[1]
+        : '✦ Live LLM Analysis';
+
+      // ── Dimensions
+      const dimGrid = el('dimensionsGrid');
+      dimGrid.innerHTML = (data.dimensions || []).map((d, i) => buildDimensionCard(d, i)).join('');
+      // Trigger bar animations after DOM insert
+      setTimeout(() => {
+        dimGrid.querySelectorAll('.dim-bar-fill').forEach(bar => {
+          bar.style.width = bar.getAttribute('data-target') + '%';
+        });
+      }, 50);
+
+      // ── Flags
+      const flags = data.flags || [];
+      if (flags.length > 0) {
+        el('flagsSection').classList.remove('hidden');
+        txt('flagCount', flags.length + ' flag' + (flags.length > 1 ? 's' : ''));
+        el('flagsList').innerHTML = flags.map((f, i) => `
+          <div class="flag-item flex items-start gap-3 p-3 rounded-lg" style="background:rgba(251,146,60,0.06); border:1px solid rgba(251,146,60,0.15); animation-delay:${i * 0.07}s">
+            <span class="text-orange-400 mt-0.5 shrink-0">▲</span>
+            <span class="text-orange-200/70 text-xs leading-relaxed font-mono">${f}</span>
+          </div>
+        `).join('');
+      } else {
+        el('flagsSection').classList.add('hidden');
+      }
+
+      showResults();
+      // Scroll to results
+      el('resultsGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ── Enter key to verify ────────────────────────────────────────
+    document.getElementById('textInput').addEventListener('keydown', function (e) {
+      if (e.ctrlKey && e.key === 'Enter') runVerification();
+    });
+    document.getElementById('urlInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') runVerification();
+    });
+
+    // ── Demo fill button (optional easter egg) ─────────────────────
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'F2') {
+        setTab('text');
+        el('textInput').value = 'SHOCKING!!! Scientists DISCOVERED the ONE CURE they don\'t want you to know!! This miracle pill COMPLETELY eliminates ALL disease FOREVER guaranteed!! They\'re hiding the truth — EXPLOSIVE cover-up revealed by whistleblowers who risked their lives to share this bombshell information.';
+        el('charCount').textContent = el('textInput').value.length + ' / 50,000';
+      }
+      if (e.key === 'F3') {
+        setTab('text');
+        el('textInput').value = 'According to a peer-reviewed study published in the journal Nature, researchers at Harvard University have found strong evidence that regular moderate exercise significantly reduces the risk of cardiovascular disease. The study analysed data from over 50,000 participants and was confirmed by independent analysis conducted by scientists at the University of Oxford and the WHO.';
+        el('charCount').textContent = el('textInput').value.length + ' / 50,000';
+      }
+    });
+  </script>
+</body>
+
+</html>
